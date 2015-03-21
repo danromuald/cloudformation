@@ -1,0 +1,150 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Build a sample VPC with one instance in it.",
+
+
+	"Mappings" : {
+
+		"SubnetConfig" : {
+
+			"VPC" : {"CIDR" : "10.0.0.0/16" },
+
+			"Public" : { "CIDR" : "10.0.0.0/24" }
+		}
+	},
+
+	"Resources" : {
+		
+		"VPC" : {
+
+			"Type" : "AWS::EC2::VPC",
+
+			"Properties" : {
+				
+				"EnableDnsSupport" : "true",
+				
+				"EnableDnsHostnames" : "true",
+
+				"CidrBlock" : {"Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR"] },
+
+				"Tags" : [
+
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+
+					{ "Key" : "Network", "Value" : "Public" }
+
+
+				]
+
+			}
+		},
+
+		"PublicSubnet" : {
+
+			"Type" : "AWS::EC2::Subnet",
+
+			"Properties" : {
+
+				"VpcId" : { "Ref" : "VPC" },
+				
+				"CidrBlock" : "10.0.0.0/24",
+
+				"Tags" : [
+
+				{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+
+				{ "Key" : "Network", "Value" : "Public" }
+
+				]
+
+			}
+		},
+
+
+		"InternetGateway" : {
+
+			"Type" : "AWS::EC2::InternetGateway"
+		},
+
+		"GatewayToInternet" : {
+
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+
+			"Properties" : {
+
+				"VpcId" : { "Ref" : "VPC" },
+				"InternetGatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicRouteTable" : {
+
+			"Type" : "AWS::EC2::RouteTable",
+
+			"Properties" : {
+
+				"VpcId" : { "Ref" : "VPC" }
+			}
+		},
+
+		"PublicRoute" : {
+
+			"Type" : "AWS::EC2::Route",
+
+			"DependsOn" : "GatewayToInternet",
+
+			"Properties" : {
+
+				"RouteTableId" : { "Ref" : "PublicRouteTable" },
+				
+				"DestinationCidrBlock" : "0.0.0.0/0",
+
+				"GatewayId" : { "Ref" : "InternetGateway" }
+
+			}
+		},
+
+		"PublicSubnetRouteTableAssociation" : {
+
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+
+			"Properties" : {
+
+				"SubnetId" : { "Ref" : "PublicSubnet" },
+
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+
+
+		"PublicInstance" : {
+
+			"Type" : "AWS::EC2::Instance",
+
+			"DependsOn" : "GatewayToInternet",
+
+			"Properties" : {
+
+				"InstanceType" : "t2.micro",
+
+				"ImageId" : "ami-b66ed3de",
+
+				"NetworkInterfaces" : [
+
+					{
+						"AssociatePublicIpAddress" : "true",
+
+						"DeleteOnTermination" : "true",
+
+						"DeviceIndex" : "0",
+
+						"SubnetId" : { "Ref" : "PublicSubnet" }
+					}
+
+				]
+			}
+		}	
+
+	}
+}
